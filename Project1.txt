@@ -1,0 +1,202 @@
+SQL> start query1.sql
+SQL> select (courses.dept_code || courses.course#) as course_id,courses.title from courses where exists ( select * from classes where courses.dept_code = classes.dept_code and courses.course# = classes.course# and year = 2014 and semester = 'Spring');
+
+COURSE_ID                                    TITLE
+-------------------------------------------- --------------------
+CS240                                        data structure
+CS432                                        database systems
+CS532                                        database systems
+Math221                                      calculus I
+
+SQL> start query2.sql
+SQL> select students.firstname from students where students.sid in ((select enrollments.sid from enrollments,classes where enrollments.classid = classes.classid and  classes.dept_code = 'Math' and enrollments.lgrade is not null and enrollments.lgrade  <>'I') intersect (select enrollments.sid from enrollments,classes where enrollments.classid = classes.classid and classes.dept_code = 'CS' and enrollments.lgrade is not  null and enrollments.lgrade<>'I'));
+
+FIRSTNAME
+---------------
+Anne
+
+SQL> start query3.sql
+SQL> (select dept_code, course# from Courses) minus (select dept_code,course# from Classes where year = 2013);
+
+DEPT    COURSE#
+---- ----------
+BIOL        425
+CS          240
+CS          532
+CS          552
+Math        221
+
+SQL> start query4.sql
+SQL> select sid,firstname,gpa from students where status<>'graduate' and  sid in(select enrollments.sid from enrollments  where lgrade = 'A');
+
+SID  FIRSTNAME              GPA
+---- --------------- ----------
+B001 Anne                  3.17
+B003 Tracy                    4
+B007 Becky                    4
+
+SQL> start query5.sql
+SQL> select firstname from students where sid not in (select sid from enrollments where lgrade = 'A') and (select count(*) from enrollments where students.sid = enrollments.sid and lgrade is not null and lgrade <>'I')>0;
+
+FIRSTNAME
+---------------
+Terry
+Barbara
+Jack
+
+SQL> start query6.sql
+SQL> select sid,firstname from students where exists (select * from enrollments where students.sid = enrollments.sid) and  not exists (select * from enrollments where students.sid=enrollments.sid and lgrade<>'A');
+
+SID  FIRSTNAME
+---- ---------------
+B003 Tracy
+B006 Terry
+B007 Becky
+
+SQL> start query7.sql
+SQL> select dept_code,course# from courses where (dept_code,course#) in (select dept_code,course# from classes group by dept_code,course# having count(classid)>=all (select count(*) from classes group by dept_code,course#));
+
+DEPT    COURSE#
+---- ----------
+CS          432
+Math        314
+
+SQL> start query8.sql
+SQL> select classid,courses.dept_code,courses.course#, (limit-class_size)as seats_available from courses,classes where class_size<limit and classes.dept_code = courses.dept_code and classes.course# = courses.course# and year = 2014 and semester = 'Spring';
+
+CLASS DEPT    COURSE# SEATS_AVAILABLE
+----- ---- ---------- ---------------
+c0005 CS          240               1
+c0001 CS          432               1
+c0006 CS          532               1
+
+SQL> start query9.sql
+SQL> select * from students where (select count(*) from Enrollments where students.sid = enrollments.sid and lgrade is not null and lgrade <>'I')>4;
+
+SID  FIRSTNAME       LASTNAME        STATUS            GPA EMAIL
+---- --------------- --------------- ---------- ---------- --------------------
+B001 Anne            Broder          junior           3.17 broder@bu.edu
+
+SQL> start query10.sql
+SQL> select * from classes where dept_code = 'CS' and semester = 'Spring' and year = 2014 and (select count(*) from     enrollments where enrollments.classid = classes.classid)<3;
+
+CLASS DEPT    COURSE#      SECT#       YEAR SEMEST      LIMIT CLASS_SIZE
+----- ---- ---------- ---------- ---------- ------ ---------- ----------
+c0001 CS          432          1       2014 Spring         35         34
+
+SQL> start query11.sql
+SQL> select sid,firstname from students where not exists ((select dept_code,course# from courses where dept_code = 'CS' and course#>=400 and course#<500) minus (select classes.dept_code,classes.course# from enrollments,classes where enrollments.sid = students.sid and classes.classid = enrollments.classid and lgrade<>'I' and course#>400 and course#<500 and dept_code='CS'));
+
+SID  FIRSTNAME
+---- ---------------
+B001 Anne
+B003 Tracy
+B004 Barbara
+
+SQL> start query12.sql
+SQL> select title from courses where (courses.dept_code,courses.course#) in ((select classes.dept_code,classes.course# from classes,enrollments,students where enrollments.sid = students.sid and classes.classid = enrollments.classid and lgrade is not null and lgrade<>'I' and students.sid = 'B001') minus  (select classes.dept_code,classes.course# from classes,enrollments,students where enrollments.sid = students.sid and classes.classid = enrollments.classid and lgrade is not null and lgrade<>'I' and students.sid = 'B002'));
+
+TITLE
+--------------------
+data structure
+database systems
+database systems
+
+SQL> start query12_OR.sql  (It’s optional as I was confused to understand terms in question)
+SQL> select title from courses where course# in (select course# from classes  where classid in (select classid from enrollments where sid = 'B001')) minus select title from courses where course# in (select course# from classes  where classid in (select classid from enrollments where sid = 'B002'));
+
+TITLE
+--------------------
+data structure
+database systems
+
+SQL> start query13.sql
+SQL> select firstname from students where exists ((select dept_code, course# from courses where exists (select * from enrollments,classes where enrollments.sid = students.sid and classes.classid = enrollments.classid and courses.course# = classes.course# and courses.dept_code = classes.dept_code and lgrade is not null and lgrade<>'I')) intersect (select dept_code, course# from courses where exists (select * from enrollments,classes where classes.classid = enrollments.classid and courses.course# = classes.course# and courses.dept_code = classes.dept_code and lgrade is not null and lgrade<>'I' and enrollments.sid = 'B005')));
+
+FIRSTNAME
+---------------
+Anne
+Jack
+Terry
+
+SQL> start query14.sql
+SQL> select dept_code,course#,semester,year from (select dept_code,course#,semester,year,count(*)as offered from classes group by (dept_code,course#,semester,year))where offered >=2;
+
+DEPT    COURSE# SEMEST       YEAR
+---- ---------- ------ ----------
+Math        314 Fall         2013
+
+SQL> start query15.sql
+SQL> select sid,firstname from students where exists (select sid,firstname from enrollments where (enrollments.classid,enrollments.lgrade) in (select classid,min(lgrade) as MAX from enrollments group by classid) and  students.sid = enrollments.sid );
+
+SID  FIRSTNAME
+---- ---------------
+B001 Anne
+B002 Terry
+B003 Tracy
+B004 Barbara
+B006 Terry
+B007 Becky
+
+6 rows selected.
+
+SQL> start query16.sql
+SQL>  select dept_code,course#,title,nvl(lgrade,'to be assigned') from courses,enrollments where exists (select * from classes where enrollments.sid = 'B003' and courses.course#=classes.course# and classes.classid = enrollments.classid and courses.dept_code = classes.dept_code);
+
+DEPT    COURSE# TITLE                NVL(LGRADE,'TO
+---- ---------- -------------------- --------------
+CS          432 database systems     A
+CS          240 data structure       to be assigned
+
+SQL> start query17.sql
+SQL> select dept_code,course#,title from courses where not exists ((select sid from students where gpa>3.25)minus(select sid from enrollments,classes where enrollments.classid = classes.classid))and title like '%systems';
+
+DEPT    COURSE# TITLE
+---- ---------- --------------------
+CS          432 database systems
+CS          532 database systems
+CS          552 operating systems
+
+SQL> start query17_OR.sql (It’s optional as I was confused to understand terms in question)
+SQL> select dept_code,course#,title from courses where not exists ((select sid from students where gpa>3.25)minus(select sid from enrollments,classes where enrollments.classid = classes.classid and classes.course# = courses.course# and classes.dept_code = courses.dept_code))and title like '%systems';
+
+no rows selected
+
+SQL> start query18.sql
+SQL> select sid,firstname,nvl(credits,0) as tot_no_credits from students left join (select students.sid as ssid ,  sum(course_credit.credits) as credits from students,enrollments,classes,course_credit where students.sid = enrollments.sid and enrollments.classid = classes.classid and lgrade is not null and lgrade<>'I' and classes.course# = course_credit.course# group by students.sid) on sid = ssid;
+
+SID  FIRSTNAME       TOT_NO_CREDITS
+---- --------------- --------------
+B001 Anne                        23
+B002 Terry                        4
+B003 Tracy                        4
+B004 Barbara                      8
+B005 Jack                         3
+B006 Terry                        3
+B007 Becky                        4
+B008 Tom                          0
+
+8 rows selected.
+
+SQL> start query19.sql
+SQL> select avg(tot_no_credits)  from (select students.sid as ssid,sum(course_credit.credits)as tot_no_credits from students,enrollments,classes,course_credit where students.sid = enrollments.sid and  enrollments.classid = classes.classid  and enrollments.lgrade is not null and enrollments.lgrade<>'I' and classes.course# = course_credit.course# group by students.sid);
+
+AVG(TOT_NO_CREDITS)
+-------------------
+                  7
+
+SQL> start query20.sql
+SQL> select students.sid, (sum(grades.ngrade)/count(grades.ngrade))as cgpa from students,grades,enrollments where students.sid = enrollments.sid(+) and enrollments.lgrade = grades.lgrade(+) group by students.sid,students.lastname order by cgpa desc;
+
+SID        CGPA
+---- ----------
+B008
+B007          4
+B006          4
+B003          4
+B001 3.16666667
+B002          3
+B005          3
+B004        2.5
+
+8 rows selected.
